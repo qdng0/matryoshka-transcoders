@@ -8,7 +8,8 @@ Matryoshka training reduces feature absorption in sparse autoencoders (SAEs). We
 
 ```text
 config/config.json   Main grid and robustness-check settings used in the paper
-config/runs/         Exact config.json of each main-grid, seed, width, prefix-ratio, Llama and joint-loss run
+config/runs/         Exact config.json of every reported run (main grid, seeds, widths, prefix ratios,
+                     Llama, SAE controls, layer-12 interventions and joint loss)
 src/model/           Matryoshka and flat transcoders, Matryoshka SAE, activation store
 src/training/        Training loops for transcoders and SAEs
 src/scripts/         Launchers for every training run in the paper
