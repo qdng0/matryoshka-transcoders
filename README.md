@@ -73,13 +73,20 @@ The per-layer sparsity targets (L0 of 115, 95, 111, 99 and 96) are filled in aut
 ### Robustness checks
 
 ```bash
-# Seeds 50 and 51 at layer 12 (same data order, new initialization)
-python -m src.scripts.train_matryoshka_all_layers --layers 12 --seed 50 --dataset-shuffle-buffer 0
-python -m src.scripts.train_flat_batchtopk_default_setup --layer 12 --seed 50 --dataset-shuffle-buffer 0
+# Seeds 50 and 51 at layers 6, 12 and 18, with the stream shuffled by a 1,000-sequence
+# buffer seeded by --seed (layer 12 at seed 51 used a 10,000-sequence buffer, see the note below)
+for seed in 50 51; do
+  python -m src.scripts.train_matryoshka_all_layers --layers 6,12,18 --seed "$seed" --dataset-shuffle-buffer 1000
+  for layer in 6 12 18; do
+    python -m src.scripts.train_flat_batchtopk_default_setup --layer "$layer" --seed "$seed" --dataset-shuffle-buffer 1000
+  done
+done
 
-# Data-order control (seed 51 with a seeded stream shuffle)
-python -m src.scripts.train_matryoshka_all_layers --layers 12 --seed 51 --dataset-shuffle-buffer 10000
-python -m src.scripts.train_flat_batchtopk_default_setup --layer 12 --seed 51 --dataset-shuffle-buffer 10000
+# Layer-12 32k pair at seeds 50 and 51
+for seed in 50 51; do
+  python -m src.scripts.train_matryoshka_all_layers --layers 12 --dict-size 32768 --seed "$seed" --dataset-shuffle-buffer 1000
+  python -m src.scripts.train_flat_batchtopk_default_setup --layer 12 --dict-size 32768 --seed "$seed" --dataset-shuffle-buffer 1000
+done
 
 # Width sweep (8k, 16k, 32k at layers 6, 12 and 18). Matryoshka groups scale dyadically with --dict-size.
 python -m src.scripts.train_matryoshka_all_layers --layers 6,12,18 --dict-size 32768 --dataset-shuffle-buffer 0
@@ -97,6 +104,8 @@ for layer in 8 16 24; do
     --layer "$layer" --dict-size 32768 --top-k 80 --model-dtype bfloat16 --dtype bfloat16
 done
 ```
+
+**Note on the layer-12 seed runs.** The layer-12 runs at seeds 50 and 51 and the data-order control come from an earlier version of the pipeline. Layer 12 at seed 51 used a 10,000-sequence shuffle buffer. The data-order control keeps the seed-51 initialization and shuffles the stream with seed 50, which reproduces the data order of the layer-12 seed-50 runs. The current launchers seed the shuffle with `--seed`, so they cannot set a separate data seed. The exact settings of these runs are recorded in `config/runs/default2_seed50/`, `config/runs/default2_seed51/` and `config/runs/default2_seed51_data50/`.
 
 ### SAE bridge controls
 
@@ -128,12 +137,16 @@ python -m src.scripts.train_default2_skip_transcoder --arch matryoshka --layer 1
 `--joint-source-weight w` adds a train-time source decoder head. Every Matryoshka prefix (or the single flat dictionary) then also reconstructs the MLP input x, scaled by Var(y)/Var(x) so that w = 1 gives both terms equal weight. The head is discarded at evaluation time, because `encode` and `decode` never use it.
 
 ```bash
-# Matryoshka + joint loss (w = 1 and w = 0.5)
+# Matryoshka + joint loss (w = 1 at layers 6, 12 and 18, w = 0.5 at layer 12, and a second seed at layer 12)
 python -m src.scripts.train_matryoshka_all_layers --layers 6,12,18 --joint-source-weight 1.0 --dataset-shuffle-buffer 0
 python -m src.scripts.train_matryoshka_all_layers --layers 12 --joint-source-weight 0.5 --dataset-shuffle-buffer 0
+python -m src.scripts.train_matryoshka_all_layers --layers 12 --joint-source-weight 1.0 --seed 50 --dataset-shuffle-buffer 0
 
-# BatchTopK + joint loss control
-python -m src.scripts.train_flat_batchtopk_default_setup --layer 12 --joint-source-weight 1.0 --dataset-shuffle-buffer 0
+# BatchTopK + joint loss control (layers 6 and 12, and a second seed at layer 12)
+for layer in 6 12; do
+  python -m src.scripts.train_flat_batchtopk_default_setup --layer "$layer" --joint-source-weight 1.0 --dataset-shuffle-buffer 0
+done
+python -m src.scripts.train_flat_batchtopk_default_setup --layer 12 --joint-source-weight 1.0 --seed 50 --dataset-shuffle-buffer 0
 ```
 
 ## Evaluation
