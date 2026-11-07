@@ -1,0 +1,61 @@
+{
+  "main_grid": {
+    "base_model": "google/gemma-2-2b",
+    "training_dataset": "monology/pile-uncopyrighted",
+    "dataset_split": "train",
+    "layers": [0, 6, 12, 18, 24],
+    "architectures": ["matryoshka", "topk", "batchtopk", "relu", "jumprelu"],
+    "dictionary_width": 16384,
+    "training_tokens": 500000000,
+    "seed": 49,
+    "source_hook": "blocks.{layer}.ln2.hook_normalized",
+    "target_hook": "blocks.{layer}.hook_mlp_out",
+    "optimizer": {
+      "name": "Adam",
+      "learning_rate": 0.00007,
+      "beta1": 0.0,
+      "beta2": 0.999
+    },
+    "layer_l0_targets": {
+      "0": 115,
+      "6": 95,
+      "12": 111,
+      "18": 99,
+      "24": 96
+    },
+    "matryoshka_cumulative_prefixes": [1024, 2048, 4096, 8192, 16384],
+    "auxiliary_loss": {
+      "enabled": true,
+      "penalty": 0.03125,
+      "hard_sparse_budget_multiplier": 8,
+      "relu_family_aux_budget": 512
+    }
+  },
+  "robustness_checks": {
+    "seed_check": {
+      "model": "google/gemma-2-2b",
+      "layer": 12,
+      "architectures": ["matryoshka", "batchtopk"],
+      "seeds": [49, 50, 51],
+      "width": 16384
+    },
+    "width_sweep": {
+      "model": "google/gemma-2-2b",
+      "layers": [6, 12, 18],
+      "architectures": ["matryoshka", "batchtopk"],
+      "widths": [8192, 16384, 32768]
+    },
+    "llama31_check": {
+      "model": "meta-llama/Llama-3.1-8B",
+      "layers": [8, 16, 24],
+      "architectures": ["matryoshka", "batchtopk"],
+      "width": 32768,
+      "l0_target": 80
+    },
+    "sae_bridge_controls": {
+      "model": "google/gemma-2-2b",
+      "layer": 12,
+      "maps": ["source_identity", "target_identity", "source_to_target"]
+    }
+  }
+}
